@@ -1,0 +1,61 @@
+* {
+    margin: 0;
+    text-transform: lowercase;
+}
+
+#body {
+    display: flex;
+}
+
+#query-tool, #data-table {
+    height: auto;
+    width: auto;
+    min-width: 250px;
+    border: 1px solid red;
+}
+
+#data-table {
+    width: 100%;
+}
+
+input[type="checkbox"], input[type="radio"] {
+    margin: 5px 5px;
+}
+
+.disabled {
+    opacity: 0.5;
+}
+
+.tables {
+    margin-top: 10px;
+    margin-bottom: 30px;
+}
+
+.table, .filter {
+    height: auto;
+    margin-left: 10px;
+}
+
+.columns, .filter-selections {
+    height: auto;
+    margin-left: 15px;
+    display: none;
+}
+
+.aggregates {
+    height: auto;
+    margin-left: 20px;
+    display: none;
+}
+
+.ignore-nulls {
+    margin-left: 30px !important;
+}
+
+.filter-selections {
+    height: auto;
+}
+
+.query-buttons {
+    margin: 40px 0 10px 15px;
+}

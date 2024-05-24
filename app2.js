@@ -1,0 +1,345 @@
+const baseUrl = 'https://k2q0f43wl3.execute-api.us-west-2.amazonaws.com/test/aelid_test';
+
+const tablesDiv = document.querySelector('.tables');
+const filtersDiv = document.querySelector('.filters');
+let selectedTables = [];
+let availableFilters = [];
+let unavailableFilters = [];
+
+async function requestData(endpoint, requestBody) {
+    const response = await fetch(`${baseUrl + endpoint}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    });
+    const data = await response.json();
+    return data;
+}
+
+async function setUpPage() {
+    const setUpData = await requestData('/get_query_tool_info', {
+        'args': {
+        }
+    });
+    setUpFilters(setUpData);
+    setUpTables(setUpData);
+    submitEventListener(setUpData);
+}
+
+window.onload = function () {
+    setUpPage();
+}
+
+// SET UP TABLES
+
+function setUpTables(object) {
+    object.Tables.forEach((table) => {
+        table.Name = table.Name.split('_').join('-').toLowerCase();
+        const tableDiv = document.createElement('div');
+        tableDiv.classList.add('table');
+        const tableCheckBox = document.createElement('input');
+        tableCheckBox.classList.add('table-checkboxes');
+        const tableCheckBoxLabel = document.createElement('label');
+        buildCheckBox(tableCheckBox, tableCheckBoxLabel, table.Name, table.Name, table.Name, tableDiv, table.Name);
+        tablesDiv.appendChild(tableDiv);
+        const columnsDiv = document.createElement('div');
+        columnsDiv.classList.add('columns');
+        columnsDiv.setAttribute('id', `${table.Name}-columns`);
+        tableDiv.appendChild(columnsDiv);
+        setUpColumns(table, columnsDiv, object);
+        addTableCheckBoxEventListeners(tableCheckBox, object);
+    })
+}
+
+function setUpColumns(table, parentDiv, object) {
+    table.Columns.forEach((column) => {
+        column.Name = column.Name.split('_').join('-').toLowerCase();
+        const columnCheckBox = document.createElement('input');
+        columnCheckBox.classList.add(`${table.Name}-column`)
+        const columnCheckBoxLabel = document.createElement('label');
+        buildCheckBox(columnCheckBox, columnCheckBoxLabel, `${table.Name}-${column.Name}`, column.Name, `${table.Name}-columns`, parentDiv, column.Name);
+        parentDiv.appendChild(document.createElement('br'));
+        const aggregatesDiv = document.createElement('div');
+        aggregatesDiv.classList.add('aggregates');
+        aggregatesDiv.setAttribute('id', `${table.Name}-${column.Name}-aggregates`);
+        parentDiv.appendChild(aggregatesDiv);
+        setUpAggregates(table, column, aggregatesDiv)
+        addColumnCheckBoxEventListeners(columnCheckBox, table, object);
+    })
+}
+
+function setUpAggregates(table, column, parentDiv) {
+    column.Agg_Methods.forEach((method) => {
+        const aggregateButton = document.createElement('input');
+        aggregateButton.setAttribute('type', 'radio');
+        aggregateButton.setAttribute('id', `${table.Name}-${column.Name}-${method}`);
+        aggregateButton.setAttribute('name', `${column.Name}-aggregates`);
+        aggregateButton.setAttribute('value', `${column.Name}-${method}`);
+        if (method == column.Agg_Methods[0]) {
+            aggregateButton.setAttribute('checked', 'true');
+        }
+        const aggregateLabel = document.createElement('label');
+        aggregateLabel.setAttribute('for', `${column.Name}-${method}`);
+        aggregateLabel.innerText = method;
+        parentDiv.appendChild(aggregateButton);
+        parentDiv.appendChild(aggregateLabel);
+        parentDiv.appendChild(document.createElement('br'));
+    })
+    const ignoreNullsBox = document.createElement('input');
+    ignoreNullsBox.classList.add('ignore-nulls');
+    const ignoreNullsLabel = document.createElement('label');
+    buildCheckBox(ignoreNullsBox, ignoreNullsLabel, `${column.Name}-ignore-nulls`, `${column.Name}-ignore-nulls`, `${column.Name}-ignore-nulls`, parentDiv, 'Ignore Nulls')
+}
+
+function addTableCheckBoxEventListeners(target, object) {
+    target.addEventListener('click', function () {
+        if (this.checked) {
+            document.querySelector(`#${this.value}-columns`).style.display = 'block'
+            selectedTables.push(this.value);
+            checkForCommonTables(selectedTables, object);
+            revealButtons(object);
+        } else {
+            document.querySelector(`#${this.value}-columns`).style.display = 'none'
+            selectedTables.splice(selectedTables.indexOf(this.value), 1);
+            checkForCommonTables(selectedTables, object);
+            revealButtons(object);
+        }
+    })
+}
+
+function addColumnCheckBoxEventListeners(target, table, object) {
+    target.addEventListener('click', function () {
+        if (this.checked) {
+            document.querySelector(`#${table.Name}-${this.value}-aggregates`).style.display = 'block'
+            revealButtons(object);
+        } else {
+            document.querySelector(`#${table.Name}-${this.value}-aggregates`).style.display = 'none'
+            revealButtons(object);
+        }
+    })
+}
+
+function checkForCommonTables(array, object) { // checks for common filter options depending on selected tables
+    disableAllFilters();
+    availableFilters = [];
+    unavailableFilters = [];
+    object.Metadata.forEach((filter) => {
+        if (array.every(tableName => filter.OwnedBy.includes(tableName))) {
+            availableFilters.push(filter.Name.split('_').join('-').toLowerCase());
+        } else {
+            unavailableFilters.push(filter.Name.split('_').join('-').toLowerCase());
+        }
+    })
+    if (selectedTables.length > 0) {
+        availableFilters.forEach((filter) => {
+            document.querySelector(`#${filter}`).removeAttribute('disabled');
+            document.querySelector(`#${filter}-checkbox-label`).classList.remove('disabled');
+        })
+        unavailableFilters.forEach((filter) => {
+            document.querySelector(`#${filter}`).checked = false;
+            document.querySelector(`#${filter}-filter-selections`).style.display = 'none'
+        })
+    } else {
+        availableFilters.forEach((filter) => {
+            document.querySelector(`#${filter}`).checked = false;
+            document.querySelector(`#${filter}-filter-selections`).style.display = 'none'
+        })
+    }
+}
+
+function revealButtons(object) {
+    let tableCounter = 0;
+    let filterCounter = 0;
+    let columnCounter = 0;
+    let filterValueCounter = 0;
+    const tableCheckboxes = document.querySelectorAll('.table-checkboxes');
+    const filterCheckboxes = document.querySelectorAll('.filter-checkboxes');
+    tableCheckboxes.forEach((checkbox) => {
+        if (checkbox.checked) {
+            tableCounter++
+        }
+    })
+    object.Tables.forEach((table) => {
+        if (document.querySelector(`#${table.Name}`).checked) {
+            let counter = 0;
+            let columns = document.querySelectorAll(`.${table.Name}-column`);
+            columns.forEach((column) => {
+                if (column.checked) {
+                    counter++;
+                }
+            })
+            if (counter == 0) {
+                columnCounter++
+            }
+        }
+    })
+    filterCheckboxes.forEach((checkbox) => {
+        if (checkbox.checked) {
+            filterCounter++
+        }
+    })
+    object.Metadata.forEach((filter) => {
+        if ((document.querySelector(`#${filter.Name}`).checked) && (filter.Name !== 'survey-date') && (filter.Values.length > 0)) {
+            let counter = 0;
+            let filters = document.querySelectorAll(`.${filter.Name}-value-box`);
+            filters.forEach((box) => {
+                if (box.checked) {
+                    counter++;
+                }
+            })
+            if (counter == 0) {
+                filterValueCounter++
+            }
+        }
+    })
+    
+    if ((tableCounter == 0) || (filterCounter == 0) || (columnCounter !== 0) || (filterValueCounter !== 0)) {
+        document.querySelector(`#query-tool-form-preview`).setAttribute('disabled', '');
+        document.querySelector(`#query-tool-form-submit`).setAttribute('disabled', '');
+    } else {
+        document.querySelector(`#query-tool-form-preview`).removeAttribute('disabled');
+        document.querySelector(`#query-tool-form-submit`).removeAttribute('disabled');
+    }
+}
+
+// SET UP FILTERS
+
+function disableAllFilters() {
+    document.querySelectorAll('.filter-checkboxes').forEach((checkbox) => {
+        checkbox.setAttribute('disabled', '');
+    })
+    document.querySelectorAll('.filter-checkbox-labels').forEach((label) => {
+        label.classList.add('disabled');
+    })
+}
+
+function setUpFilters(object) {
+    object.Metadata.forEach((filter) => {
+        filter.Name = filter.Name.split('_').join('-').toLowerCase();
+        const filterDiv = document.createElement('div');
+        filterDiv.classList.add('filter');
+        filterDiv.setAttribute('id', `${filter.Name}-filter`);
+        const filterCheckBox = document.createElement('input');
+        filterCheckBox.classList.add('filter-checkboxes');
+        const filterCheckBoxLabel = document.createElement('label');
+        filterCheckBoxLabel.setAttribute('id', `${filter.Name}-checkbox-label`);
+        filterCheckBoxLabel.classList.add('filter-checkbox-labels');
+        buildCheckBox(filterCheckBox, filterCheckBoxLabel, filter.Name, filter.Name, filter.Name, filterDiv, filter.Name.split('-').join(' ').toLowerCase());
+        filtersDiv.appendChild(filterDiv);
+        const filterSelectionsDiv = document.createElement('div');
+        filterSelectionsDiv.classList.add('filter-selections');
+        filterSelectionsDiv.setAttribute('id', `${filter.Name}-filter-selections`);
+        filterDiv.appendChild(filterSelectionsDiv);
+        setUpFilterSelections(filter, filterSelectionsDiv, object)
+        addFilterCheckBoxEventListeners(filterCheckBox, object);
+    })
+    disableAllFilters();
+}
+
+function setUpFilterSelections(filter, parentDiv, object) {
+    if (filter.Name == 'survey-date') {
+        buildDateFilter(filter, parentDiv);
+    } else {
+        filter.Values.forEach((value) => {
+            const filterValueBox = document.createElement('input');
+            filterValueBox.classList.add(`${filter.Name}-value-box`)
+            const filterValueLabel = document.createElement('label');
+            buildCheckBox(filterValueBox, filterValueLabel, `${filter.Name}-${value}`, `${filter.Name}-value`, filter.Name, parentDiv, value);
+            addFilterValueEventListeners(filterValueBox, object);
+            parentDiv.appendChild(document.createElement('br'));
+        })
+    }
+}
+
+function buildDateFilter(filter, parentDiv) { // builds date filter
+    const dateFilterDiv = document.createElement('div');
+    const startDateLabel = document.createElement('label');
+    startDateLabel.setAttribute('for', 'start-date');
+    startDateLabel.innerText = 'start date:'
+    const startDate = document.createElement('input');
+    startDate.setAttribute('type', 'date');
+    startDate.setAttribute('id', 'start-date');
+    startDate.setAttribute('name', 'start');
+    startDate.setAttribute('value', filter.Min)
+    startDate.setAttribute('min', filter.Min)
+    startDate.setAttribute('max', filter.Max)
+    const endDateLabel = document.createElement('label');
+    endDateLabel.setAttribute('for', 'end-date');
+    endDateLabel.innerText = 'end date:'
+    const endDate = document.createElement('input');
+    endDate.setAttribute('type', 'date');
+    endDate.setAttribute('id', 'end-date');
+    endDate.setAttribute('name', 'end');
+    endDate.setAttribute('value', filter.Max)
+    endDate.setAttribute('min', filter.Min)
+    endDate.setAttribute('max', filter.Max)
+    //addDateEventListeners(startDate, endDate);
+    dateFilterDiv.appendChild(startDateLabel);
+    dateFilterDiv.appendChild(startDate);
+    dateFilterDiv.appendChild(document.createElement('br'));
+    dateFilterDiv.appendChild(endDateLabel);
+    dateFilterDiv.appendChild(endDate);
+    parentDiv.appendChild(dateFilterDiv);
+}
+
+function addFilterCheckBoxEventListeners(target, object) {
+    target.addEventListener('click', function () {
+        if (this.checked) {
+            document.querySelector(`#${this.value}-filter-selections`).style.display = 'block'
+            revealButtons(object);
+        } else {
+            document.querySelector(`#${this.value}-filter-selections`).style.display = 'none'
+            revealButtons(object);
+        }
+    })
+}
+
+function addFilterValueEventListeners(target, object) {
+    target.addEventListener('click', function () {
+        revealButtons(object);
+    })
+}
+
+// SET UP FUNCTIONS
+
+function buildCheckBox(checkbox, label, idFor, value, nameVar, parentDiv, innerText) {
+    checkbox.setAttribute('type', 'checkbox');
+    checkbox.setAttribute('id', idFor);
+    checkbox.setAttribute('value', value);
+    checkbox.setAttribute('name', nameVar);
+    label.setAttribute('for', idFor);
+    label.innerText = innerText;
+    parentDiv.appendChild(checkbox);
+    parentDiv.appendChild(label);
+}
+
+// SUBMITTING FORM
+
+let query_args;
+
+function submitEventListener(object) {
+    document.querySelector('#query-tool-form').addEventListener("submit", function (e) {
+        e.preventDefault();
+        gatherReturnData(object);
+    })
+}
+
+function gatherReturnData(object) {
+    query_args = {
+        fields: [],
+    };
+    //console.log(object);
+    const tables = document.querySelectorAll('.table-checkboxes');
+    const filters = document.querySelectorAll('.filter-checkboxes');
+    tables.forEach((checkbox) => {
+        if (checkbox.checked) {
+            query_args.fields.push({
+                table: checkbox.value,
+                columns: [],
+            });
+        }
+    })
+    console.log(query_args)
+}
