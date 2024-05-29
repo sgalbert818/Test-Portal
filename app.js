@@ -8,15 +8,23 @@ let availableFilters = [];
 let unavailableFilters = [];
 
 async function requestData(endpoint, requestBody) {
-    const response = await fetch(`${baseUrl + endpoint}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-    });
-    const data = await response.json();
-    return data;
+    try {
+        const response = await fetch(`${baseUrl + endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        if (!response.ok) {
+            const errorMessage = 'Error: ' + response.status;
+            throw new Error(errorMessage);
+        }
+        const data = await response.json();
+        return data;
+    } catch(error) {
+        alert(error.message);
+    }
 }
 
 async function setUpPage() {
@@ -27,6 +35,7 @@ async function setUpPage() {
     setUpFilters(setUpData);
     setUpTables(setUpData);
     submitEventListener(setUpData);
+    downloadEventListener();
 }
 
 window.onload = function () {
@@ -42,6 +51,7 @@ function setUpTables(object) {
         tableDiv.classList.add('table');
         const tableCheckBox = document.createElement('input');
         tableCheckBox.classList.add('table-checkboxes');
+        tableCheckBox.classList.add('clickable-query-option');
         const tableCheckBoxLabel = document.createElement('label');
         buildCheckBox(tableCheckBox, tableCheckBoxLabel, table.Name, table.Name, table.Name, tableDiv, table.Name);
         tablesDiv.appendChild(tableDiv);
@@ -59,6 +69,7 @@ function setUpColumns(table, parentDiv, object) {
         column.Name = column.Name.split('_').join('-').toLowerCase();
         const columnCheckBox = document.createElement('input');
         columnCheckBox.classList.add(`${table.Name}-column`)
+        columnCheckBox.classList.add('clickable-query-option');
         const columnCheckBoxLabel = document.createElement('label');
         buildCheckBox(columnCheckBox, columnCheckBoxLabel, `${table.Name}-${column.Name}`, column.Name, `${table.Name}-columns`, parentDiv, column.Name);
         parentDiv.appendChild(document.createElement('br'));
@@ -75,6 +86,7 @@ function setUpAggregates(table, column, parentDiv) {
     column.Agg_Methods.forEach((method) => {
         const aggregateButton = document.createElement('input');
         aggregateButton.classList.add(`${column.Name}-aggregate`)
+        aggregateButton.classList.add('clickable-query-option');
         aggregateButton.setAttribute('type', 'radio');
         aggregateButton.setAttribute('id', `${table.Name}-${column.Name}-${method}`);
         aggregateButton.setAttribute('name', `${column.Name}-aggregates`);
@@ -91,6 +103,7 @@ function setUpAggregates(table, column, parentDiv) {
     })
     const ignoreNullsBox = document.createElement('input');
     ignoreNullsBox.classList.add('ignore-nulls');
+    ignoreNullsBox.classList.add('clickable-query-option');
     const ignoreNullsLabel = document.createElement('label');
     buildCheckBox(ignoreNullsBox, ignoreNullsLabel, `${column.Name}-ignore-nulls`, `true`, `${column.Name}-ignore-nulls`, parentDiv, 'Ignore Nulls')
 }
@@ -198,11 +211,9 @@ function revealButtons(object) {
     })
     
     if ((tableCounter == 0) || (filterCounter == 0) || (columnCounter !== 0) || (filterValueCounter !== 0)) {
-        document.querySelector(`#query-tool-form-preview`).setAttribute('disabled', '');
-        document.querySelector(`#query-tool-form-submit`).setAttribute('disabled', '');
+        document.querySelector(`#query-tool-form-view`).setAttribute('disabled', '');
     } else {
-        document.querySelector(`#query-tool-form-preview`).removeAttribute('disabled');
-        document.querySelector(`#query-tool-form-submit`).removeAttribute('disabled');
+        document.querySelector(`#query-tool-form-view`).removeAttribute('disabled');
     }
 }
 
@@ -225,6 +236,7 @@ function setUpFilters(object) {
         filterDiv.setAttribute('id', `${filter.Name}-filter`);
         const filterCheckBox = document.createElement('input');
         filterCheckBox.classList.add('filter-checkboxes');
+        filterCheckBox.classList.add('clickable-query-option');
         const filterCheckBoxLabel = document.createElement('label');
         filterCheckBoxLabel.setAttribute('id', `${filter.Name}-checkbox-label`);
         filterCheckBoxLabel.classList.add('filter-checkbox-labels');
@@ -247,6 +259,7 @@ function setUpFilterSelections(filter, parentDiv, object) {
         filter.Values.forEach((value) => {
             const filterValueBox = document.createElement('input');
             filterValueBox.classList.add(`${filter.Name}-value-box`)
+            filterValueBox.classList.add('clickable-query-option');
             const filterValueLabel = document.createElement('label');
             buildCheckBox(filterValueBox, filterValueLabel, `${filter.Name}-${value}`, `${value}`, filter.Name, parentDiv, value);
             addFilterValueEventListeners(filterValueBox, object);
@@ -257,6 +270,7 @@ function setUpFilterSelections(filter, parentDiv, object) {
 
 function buildDateFilter(filter, parentDiv) { // builds date filter
     const dateFilterDiv = document.createElement('div');
+    dateFilterDiv.setAttribute('id', 'date-filter-div');
     const startDateLabel = document.createElement('label');
     startDateLabel.setAttribute('for', 'start-date');
     startDateLabel.innerText = 'start date:'
@@ -288,11 +302,13 @@ function buildDateFilter(filter, parentDiv) { // builds date filter
 
 function addDateEventListeners(start, end) {
     start.addEventListener('change', function() {
+        document.querySelector(`#query-tool-form-download`).setAttribute('disabled', '');
         if (start.value > end.value) {
             end.value = start.value;
         }
     })
     end.addEventListener('change', function() {
+        document.querySelector(`#query-tool-form-download`).setAttribute('disabled', '');
         if (end.value < start.value) {
             start.value = end.value;
         }
@@ -329,6 +345,16 @@ function buildCheckBox(checkbox, label, idFor, value, nameVar, parentDiv, innerT
     parentDiv.appendChild(checkbox);
     parentDiv.appendChild(label);
 }
+
+function downloadEventListener() {
+    const clickables = document.querySelectorAll('.clickable-query-option');
+    clickables.forEach((item) => {
+        item.addEventListener('click', function() {
+            document.querySelector(`#query-tool-form-download`).setAttribute('disabled', '');
+        })
+    })
+}
+
 
 // SUBMITTING FORM
 
@@ -408,18 +434,32 @@ function submitEventListener(object) {
         e.preventDefault();
         let requestBody = gatherReturnFilterData(object);
         const data = await requestData('/get_data', {args: requestBody});
-        gridOptions = {
-            rowData: [],
-            columnDefs: [],
-        };
         dataGrid.innerHTML = '';
-        data.columns.forEach((column) => {
-            gridOptions.columnDefs.push(column);
-        })
-        data.rows.forEach((row) => {
-            gridOptions.rowData.push(row);
-        })
-        agGrid.createGrid(dataGrid, gridOptions);    
+        if ((data.columns.length == 0) || (data.rows.length == 0)) {
+            dataGrid.innerText = 'No data found for this criteria. Please change filter selections and try again.';
+        } else {
+            gridOptions = {
+                rowData: [],
+                columnDefs: [],
+                onGridReady: function(params) {
+                    const gridApi = params.api;
+                    const csvButton = document.getElementById('query-tool-form-download');
+                
+                    csvButton.addEventListener('click', function() {
+                      gridApi.exportDataAsCsv();
+                    });
+                  }
+            };
+            data.columns.forEach((column) => {
+                column.flex = 1;
+                column.minWidth = 120;
+                gridOptions.columnDefs.push(column);
+            })
+            data.rows.forEach((row) => {
+                gridOptions.rowData.push(row);
+            })
+            agGrid.createGrid(dataGrid, gridOptions);
+            document.querySelector(`#query-tool-form-download`).removeAttribute('disabled');
+        }
     })
 }
-
