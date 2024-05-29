@@ -2,6 +2,7 @@ const baseUrl = 'https://k2q0f43wl3.execute-api.us-west-2.amazonaws.com/test/ael
 
 const tablesDiv = document.querySelector('.tables');
 const filtersDiv = document.querySelector('.filters');
+const dataGrid = document.querySelector('#data-grid');
 let selectedTables = [];
 let availableFilters = [];
 let unavailableFilters = [];
@@ -73,10 +74,11 @@ function setUpColumns(table, parentDiv, object) {
 function setUpAggregates(table, column, parentDiv) {
     column.Agg_Methods.forEach((method) => {
         const aggregateButton = document.createElement('input');
+        aggregateButton.classList.add(`${column.Name}-aggregate`)
         aggregateButton.setAttribute('type', 'radio');
         aggregateButton.setAttribute('id', `${table.Name}-${column.Name}-${method}`);
         aggregateButton.setAttribute('name', `${column.Name}-aggregates`);
-        aggregateButton.setAttribute('value', `${column.Name}-${method}`);
+        aggregateButton.setAttribute('value', `${method}`);
         if (method == column.Agg_Methods[0]) {
             aggregateButton.setAttribute('checked', 'true');
         }
@@ -90,7 +92,7 @@ function setUpAggregates(table, column, parentDiv) {
     const ignoreNullsBox = document.createElement('input');
     ignoreNullsBox.classList.add('ignore-nulls');
     const ignoreNullsLabel = document.createElement('label');
-    buildCheckBox(ignoreNullsBox, ignoreNullsLabel, `${column.Name}-ignore-nulls`, `${column.Name}-ignore-nulls`, `${column.Name}-ignore-nulls`, parentDiv, 'Ignore Nulls')
+    buildCheckBox(ignoreNullsBox, ignoreNullsLabel, `${column.Name}-ignore-nulls`, `true`, `${column.Name}-ignore-nulls`, parentDiv, 'Ignore Nulls')
 }
 
 function addTableCheckBoxEventListeners(target, object) {
@@ -246,7 +248,7 @@ function setUpFilterSelections(filter, parentDiv, object) {
             const filterValueBox = document.createElement('input');
             filterValueBox.classList.add(`${filter.Name}-value-box`)
             const filterValueLabel = document.createElement('label');
-            buildCheckBox(filterValueBox, filterValueLabel, `${filter.Name}-${value}`, `${filter.Name}-value`, filter.Name, parentDiv, value);
+            buildCheckBox(filterValueBox, filterValueLabel, `${filter.Name}-${value}`, `${value}`, filter.Name, parentDiv, value);
             addFilterValueEventListeners(filterValueBox, object);
             parentDiv.appendChild(document.createElement('br'));
         })
@@ -275,13 +277,26 @@ function buildDateFilter(filter, parentDiv) { // builds date filter
     endDate.setAttribute('value', filter.Max)
     endDate.setAttribute('min', filter.Min)
     endDate.setAttribute('max', filter.Max)
-    //addDateEventListeners(startDate, endDate);
+    addDateEventListeners(startDate, endDate);
     dateFilterDiv.appendChild(startDateLabel);
     dateFilterDiv.appendChild(startDate);
     dateFilterDiv.appendChild(document.createElement('br'));
     dateFilterDiv.appendChild(endDateLabel);
     dateFilterDiv.appendChild(endDate);
     parentDiv.appendChild(dateFilterDiv);
+}
+
+function addDateEventListeners(start, end) {
+    start.addEventListener('change', function() {
+        if (start.value > end.value) {
+            end.value = start.value;
+        }
+    })
+    end.addEventListener('change', function() {
+        if (end.value < start.value) {
+            start.value = end.value;
+        }
+    })
 }
 
 function addFilterCheckBoxEventListeners(target, object) {
@@ -317,29 +332,94 @@ function buildCheckBox(checkbox, label, idFor, value, nameVar, parentDiv, innerT
 
 // SUBMITTING FORM
 
-let query_args;
-
-function submitEventListener(object) {
-    document.querySelector('#query-tool-form').addEventListener("submit", function (e) {
-        e.preventDefault();
-        gatherReturnData(object);
-    })
-}
-
-function gatherReturnData(object) {
+function gatherReturnTableData(object) {
     query_args = {
+        meta_columns: [],
         fields: [],
     };
-    //console.log(object);
     const tables = document.querySelectorAll('.table-checkboxes');
-    const filters = document.querySelectorAll('.filter-checkboxes');
     tables.forEach((checkbox) => {
         if (checkbox.checked) {
-            query_args.fields.push({
-                table: checkbox.value,
-                columns: [],
-            });
+            const newFieldsObject = {
+                table: checkbox.value.split('-').join('_'),
+                columns: []
+            }
+            document.querySelectorAll(`.${checkbox.value}-column`).forEach((column) => {
+                if (column.checked) {
+                    const newColumnsObject = {
+                        name: column.value.split('-').join('_'),
+                        agg_method: '',
+                        ignore_nulls: '',
+                    };
+                    document.querySelectorAll(`.${column.value}-aggregate`).forEach((aggregate) => {
+                        if (aggregate.checked) {
+                            newColumnsObject.agg_method = aggregate.value;
+                        }
+                    })
+                    if (document.querySelector(`#${column.value}-ignore-nulls`).checked) {
+                        newColumnsObject.ignore_nulls = 'true';
+                    } else {
+                        newColumnsObject.ignore_nulls = 'false';
+                    }
+                    newFieldsObject.columns.push(newColumnsObject);
+                }
+            })
+            query_args.fields.push(newFieldsObject);
         }
     })
-    console.log(query_args)
+    return query_args;
+};
+
+function gatherReturnFilterData(object) {
+    const query_args = gatherReturnTableData(object);
+    const filters = document.querySelectorAll('.filter-checkboxes');
+    filters.forEach((checkbox) => {
+        if (checkbox.checked) {
+            let newMetaObject = {};
+            if (checkbox.value == 'survey-date') {
+                newMetaObject = {
+                    name: checkbox.value.split('-').join('_'),
+                    min: document.querySelector('#start-date').value,
+                    max: document.querySelector('#end-date').value,
+                    group_by_week: 'False',
+                }
+            } else {
+                newMetaObject = {
+                    name: checkbox.value.split('-').join('_'),
+                    values: [],
+                }
+                document.querySelectorAll(`.${checkbox.value}-value-box`).forEach((value) => {
+                    if (value.checked) {
+                        newMetaObject.values.push(value.value);
+                    }
+                })
+            }
+            query_args.meta_columns.push(newMetaObject);
+        }
+    })
+    return query_args;
 }
+
+let query_args;
+let gridOptions = {};
+
+function submitEventListener(object) {
+    document.querySelector('#query-tool-form').addEventListener("submit", async function (e) {
+        e.preventDefault();
+        let requestBody = gatherReturnFilterData(object);
+        const data = await requestData('/get_data', {args: requestBody});
+        gridOptions = {
+            rowData: [],
+            columnDefs: [],
+        };
+        dataGrid.innerHTML = '';
+        data.columns.forEach((column) => {
+            gridOptions.columnDefs.push(column);
+        })
+        data.rows.forEach((row) => {
+            gridOptions.rowData.push(row);
+        })
+        agGrid.createGrid(dataGrid, gridOptions);    
+    })
+}
+
