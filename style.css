@@ -1,10 +1,13 @@
 * {
     margin: 0;
-    text-transform: lowercase;
+    font-family: "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    text-transform: capitalize;
+    font-size: 12px;
 }
 
 #body {
     display: flex;
+    font-size: 12px;
 }
 
 #query-tool,
@@ -27,10 +30,28 @@
 }
 
 .ag-theme-custom {
-    flex-grow: 1;
-    --ag-background-color: #FFFFFF;
-    --ag-foreground-color: #000000;
-    --ag-border-color: #000000;
+    --ag-balham-active-color: #0091ea;
+    --ag-foreground-color: #000;
+    --ag-background-color: #fff;
+    --ag-header-background-color: #fbfbfb;
+    --ag-border-color: #bdc3c7;
+    --ag-odd-row-background-color: #fbfbfb;
+    --ag-row-hover-color: #ecf0f1;
+    --ag-row-border-color: rgba(189, 195, 199, 0.58);
+    --ag-header-column-separator-display: block;
+    --ag-header-column-separator-height: 100%;
+    --ag-grid-size: 4px;
+    --ag-icon-size: 16px;
+    --ag-row-height: calc(var(--ag-grid-size) * 7);
+    --ag-header-height: calc(var(--ag-grid-size) * 8);
+    --ag-list-item-height: calc(var(--ag-grid-size) * 6);
+    --ag-row-group-indent-size: calc(var(--ag-grid-size) * 3 + var(--ag-icon-size));
+    --ag-cell-horizontal-padding: calc(var(--ag-grid-size) * 2);
+    --ag-input-height: calc(var(--ag-grid-size) * 4);
+    --ag-font-family: "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    --ag-font-size: 12px;
+    --ag-icon-font-family: agGridBalham;
+    --ag-border-radius: 2px;
 }
 
 input[type="checkbox"],
@@ -82,5 +103,9 @@ input[type="radio"] {
 }
 
 .query-buttons {
-   margin: 20px 0 0 5px;
+    margin: 20px 0 0 5px;
+}
+
+.not-capitalized {
+    text-transform: none;
 }

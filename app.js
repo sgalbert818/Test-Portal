@@ -6,6 +6,12 @@ const dataGrid = document.querySelector('#data-grid');
 let selectedTables = [];
 let availableFilters = [];
 let unavailableFilters = [];
+const myAggregates = {
+    'AVG': 'Average',
+    'MAX': 'Maximum',
+    'MIN': 'Minimum',
+    'SUM': 'Sum',
+}
 
 async function requestData(endpoint, requestBody) {
     try {
@@ -71,7 +77,7 @@ function setUpColumns(table, parentDiv, object) {
         columnCheckBox.classList.add(`${table.Name}-column`)
         columnCheckBox.classList.add('clickable-query-option');
         const columnCheckBoxLabel = document.createElement('label');
-        buildCheckBox(columnCheckBox, columnCheckBoxLabel, `${table.Name}-${column.Name}`, column.Name, `${table.Name}-columns`, parentDiv, column.Name);
+        buildCheckBox(columnCheckBox, columnCheckBoxLabel, `${table.Name}-${column.Name}`, column.Name, `${table.Name}-columns`, parentDiv, column.Name.split('-').join(' '));
         parentDiv.appendChild(document.createElement('br'));
         const aggregatesDiv = document.createElement('div');
         aggregatesDiv.classList.add('aggregates');
@@ -96,7 +102,7 @@ function setUpAggregates(table, column, parentDiv) {
         }
         const aggregateLabel = document.createElement('label');
         aggregateLabel.setAttribute('for', `${column.Name}-${method}`);
-        aggregateLabel.innerText = method;
+        aggregateLabel.innerText = myAggregates[method];
         parentDiv.appendChild(aggregateButton);
         parentDiv.appendChild(aggregateLabel);
         parentDiv.appendChild(document.createElement('br'));
