@@ -1,3 +1,5 @@
+// make sorting visible on tables, add column lines
+
 const baseUrl = 'https://k2q0f43wl3.execute-api.us-west-2.amazonaws.com/test/aelid_test';
 
 const tablesDiv = document.querySelector('.tables');
@@ -33,7 +35,11 @@ async function requestData(endpoint, requestBody) {
     }
 }
 
-async function setUpPage() {
+export function test() {
+    console.log('hi');
+}
+
+export async function setUpPage() {
     const setUpData = await requestData('/get_query_tool_info', {
         'args': {
         }
