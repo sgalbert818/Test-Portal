@@ -35,11 +35,7 @@ async function requestData(endpoint, requestBody) {
     }
 }
 
-export function test() {
-    console.log('hi');
-}
-
-export async function setUpPage() {
+async function setUpPage() {
     const setUpData = await requestData('/get_query_tool_info', {
         'args': {
         }
@@ -120,7 +116,7 @@ function setUpAggregates(table, column, parentDiv) {
     buildCheckBox(ignoreNullsBox, ignoreNullsLabel, `${column.Name}-ignore-nulls`, `true`, `${column.Name}-ignore-nulls`, parentDiv, 'Ignore Nulls')
 }
 
-function addTableCheckBoxEventListeners(target, object) {
+export function addTableCheckBoxEventListeners(target, object) {
     target.addEventListener('click', function () {
         if (this.checked) {
             document.querySelector(`#${this.value}-columns`).style.display = 'block'
@@ -231,7 +227,7 @@ function revealButtons(object) {
 
 // SET UP FILTERS
 
-function disableAllFilters() {
+export function disableAllFilters() {
     document.querySelectorAll('.filter-checkboxes').forEach((checkbox) => {
         checkbox.setAttribute('disabled', '');
     })
@@ -264,7 +260,7 @@ function setUpFilters(object) {
     disableAllFilters();
 }
 
-function setUpFilterSelections(filter, parentDiv, object) {
+export function setUpFilterSelections(filter, parentDiv, object) {
     if (filter.Name == 'survey-date') {
         buildDateFilter(filter, parentDiv);
     } else {
@@ -327,7 +323,7 @@ function addDateEventListeners(start, end) {
     })
 }
 
-function addFilterCheckBoxEventListeners(target, object) {
+export function addFilterCheckBoxEventListeners(target, object) {
     target.addEventListener('click', function () {
         if (this.checked) {
             document.querySelector(`#${this.value}-filter-selections`).style.display = 'block'
@@ -347,7 +343,7 @@ function addFilterValueEventListeners(target, object) {
 
 // SET UP FUNCTIONS
 
-function buildCheckBox(checkbox, label, idFor, value, nameVar, parentDiv, innerText) {
+export function buildCheckBox(checkbox, label, idFor, value, nameVar, parentDiv, innerText) {
     checkbox.setAttribute('type', 'checkbox');
     checkbox.setAttribute('id', idFor);
     checkbox.setAttribute('value', value);
