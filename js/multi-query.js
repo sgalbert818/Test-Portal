@@ -172,7 +172,7 @@ function checkForCommonTables(array, object) { // checks for common filter optio
     }
 }
 
-function revealButtons(object) {
+export function revealButtons(object) {
     let tableCounter = 0;
     let filterCounter = 0;
     let columnCounter = 0;
@@ -276,7 +276,7 @@ export function setUpFilterSelections(filter, parentDiv, object) {
     }
 }
 
-function buildDateFilter(filter, parentDiv) { // builds date filter
+export function buildDateFilter(filter, parentDiv) { // builds date filter
     const dateFilterDiv = document.createElement('div');
     dateFilterDiv.setAttribute('id', 'date-filter-div');
     const startDateLabel = document.createElement('label');
@@ -354,7 +354,7 @@ export function buildCheckBox(checkbox, label, idFor, value, nameVar, parentDiv,
     parentDiv.appendChild(label);
 }
 
-function downloadEventListener() {
+export function downloadEventListener() {
     const clickables = document.querySelectorAll('.clickable-query-option');
     clickables.forEach((item) => {
         item.addEventListener('click', function() {

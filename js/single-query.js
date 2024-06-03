@@ -1,4 +1,4 @@
-import { disableAllFilters, setUpFilterSelections, buildCheckBox, addFilterCheckBoxEventListeners } from "./multi-query.js";
+import { disableAllFilters, setUpFilterSelections, buildCheckBox, downloadEventListener } from "./multi-query.js";
 
 // disable trail/trailhead/stream view button, then work on return object
 
@@ -34,8 +34,8 @@ async function setUpPage() {
     });
     setUpFilters(setUpData);
     setUpTables(setUpData);
-    //submitEventListener(setUpData);
-    //downloadEventListener();
+    submitEventListener(setUpData);
+    downloadEventListener();
 }
 
 window.onload = function () {
@@ -120,6 +120,48 @@ function setUpFilters(object) {
     revealOriginalFilters(object);
 }
 
+function addFilterCheckBoxEventListeners(target, object) {
+    target.addEventListener('click', function () {
+        if (this.checked) {
+            document.querySelector(`#${this.value}-filter-selections`).style.display = 'block'
+            revealButtons(object);
+        } else {
+            document.querySelector(`#${this.value}-filter-selections`).style.display = 'none'
+            revealButtons(object);
+        }
+    })
+}
+
+function revealButtons(object) {
+    let filterCounter = 0;
+    let filterValueCounter = 0;
+    const filterCheckboxes = document.querySelectorAll('.filter-checkboxes');
+    filterCheckboxes.forEach((checkbox) => {
+        if (checkbox.checked) {
+            filterCounter++
+        }
+    })
+    object.Metadata.forEach((filter) => {
+        if ((document.querySelector(`#${filter.Name}`).checked) && (filter.Name !== 'survey-date') && (filter.Values.length > 0)) {
+            let counter = 0;
+            let filters = document.querySelectorAll(`.${filter.Name}-value-box`);
+            filters.forEach((box) => {
+                if (box.checked) {
+                    counter++;
+                }
+            })
+            if (counter == 0) {
+                filterValueCounter++
+            }
+        }
+    })
+    if ((filterCounter == 0) || (filterValueCounter !== 0)) {
+        document.querySelector(`#query-tool-form-view`).setAttribute('disabled', '');
+    } else {
+        document.querySelector(`#query-tool-form-view`).removeAttribute('disabled');
+    }
+}
+
 function revealOriginalFilters(object) {
     object.Metadata.forEach((filter) => {
         if (filter.OwnedBy.includes(object.Tables[0].Name)) {
@@ -140,6 +182,75 @@ function revealFilters(table, object) {
     filters.forEach((filter) => {
         document.querySelector(`#${filter}`).removeAttribute('disabled');
         document.querySelector(`#${filter}-checkbox-label`).classList.remove('disabled');
+    })
+}
+
+// VIEW/SUBMIT BUTTON
+
+let query_args;
+let gridOptions = {};
+
+function gatherReturnTableData(object) {
+    query_args = {
+        meta_columns: [],
+        fields: [],
+    };
+    const tables = document.querySelectorAll('.table-checkboxes');
+    tables.forEach((checkbox) => {
+        if (checkbox.checked) {
+            const newFieldsObject = {
+                table: checkbox.value.split('-').join('_'),
+                columns: []
+            }
+            document.querySelectorAll(`.${checkbox.value}-column`).forEach((column) => {
+                if (column.checked) {
+                    const newColumnsObject = {
+                        name: column.value.split('-').join('_'),
+                    };
+                    newFieldsObject.columns.push(newColumnsObject);
+                }
+            })
+            query_args.fields.push(newFieldsObject);
+        }
+    })
+    return query_args;
+};
+
+function gatherReturnFilterData(object) {
+    const query_args = gatherReturnTableData(object);
+    const filters = document.querySelectorAll('.filter-checkboxes');
+    filters.forEach((checkbox) => {
+        if (checkbox.checked) {
+            let newMetaObject = {};
+            if (checkbox.value == 'survey-date') {
+                newMetaObject = {
+                    name: checkbox.value.split('-').join('_'),
+                    min: document.querySelector('#start-date').value,
+                    max: document.querySelector('#end-date').value,
+                    group_by_week: 'False',
+                }
+            } else {
+                newMetaObject = {
+                    name: checkbox.value.split('-').join('_'),
+                    values: [],
+                }
+                document.querySelectorAll(`.${checkbox.value}-value-box`).forEach((value) => {
+                    if (value.checked) {
+                        newMetaObject.values.push(value.value);
+                    }
+                })
+            }
+            query_args.meta_columns.push(newMetaObject);
+        }
+    })
+    return query_args;
+}
+
+function submitEventListener(object) {
+    document.querySelector('#query-tool-form').addEventListener("submit", async function (e) {
+        e.preventDefault();
+        let requestBody = gatherReturnFilterData(object);
+        console.log(requestBody);
     })
 }
 
